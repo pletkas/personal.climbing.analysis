@@ -1,0 +1,84 @@
+---
+title: "Personal Climbing Progression"
+author: "Sage Pletka"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is an attempt to analyze my climbing progression based on outdoor sends I have logged on Mountain Project. I have not included sends under v5 as I have not ever consistenty logged them beyond my first year. I am using my own grade opinion of them and not the mountain project grade necessarily. Only climbs I did not personally grade use the MP grade.
+
+Packages:
+
+``` {r, results = "hide", message = FALSE}
+library(tidyverse)
+```
+
+
+
+Data pulled from MP onto personal computer:
+``` {r, warning = FALSE, results = "hide"}
+ticks <- read_csv("/Users/sagepletka/Documents/data projects/climbing.progression/mtn.projs.ticks.csv",
+                 skip = 1 )
+```
+
+
+Data cleaning:
+```{r, warning = FALSE}
+cleanticks <- ticks %>% select(Date, Route, Rating, `Your Rating`) %>%
+  rename(mygrade = `Your Rating`) %>%
+  mutate(grade = ifelse(is.na(mygrade), Rating, mygrade)) %>%
+  select(-Rating, -mygrade) %>% filter(str_starts(grade, "V")) %>% 
+  mutate(grade = str_sub(grade, 2, 3))
+cleanticks$grade <- as.numeric(cleanticks$grade)
+finalticks <- cleanticks %>% filter(grade >= 5) %>%
+  mutate(year = str_sub(Date, 1, 4))
+finalticks$grade[61] <- 8
+```
+
+Highest grade sent each year:
+```{r, echo = FALSE, fig.align = 'center'}
+maxgrade <- finalticks %>% group_by(year) %>%
+  summarise(maxgrade = max(grade)) %>% ggplot(aes(year, maxgrade)) +
+  geom_point(size = 4) + ylim(0, 16)
+maxgrade
+```
+
+
+Number of sends per year:
+```{r, echo = FALSE, fig.align = 'center'}
+finalticks %>% count(year) %>% ggplot(aes(year, n)) + geom_col(aes(fill = year), color = "black") + 
+  ylab("Number of Sends") + xlab("Year") + theme(legend.position = "none")
+```
+*Note that 2020 was the year I started and 2023 is not finished yet
+
+*Additionally, in 2022 I moved to Indianapolis which lowered my access to outdoor climbing time
+
+Total V-points per year:
+```{r, echo = FALSE, fig.align = 'center'}
+vpoints_per_year <- finalticks %>% group_by(year) %>% summarise(vpoints = sum(grade))
+vpoint_per_year_plot <- ggplot(vpoints_per_year, aes(year, vpoints)) + 
+  geom_col(aes(fill = year), color = "black")
+vpoint_per_year_plot
+```
+
+
+Breakdown of grades sent per year:
+```{r, echo = FALSE, fig.align = 'center'}
+sends_by_year <- finalticks %>% ggplot(aes(grade)) + 
+  geom_histogram(bins = 6, aes(fill = year), color = "black") +
+  facet_grid(~ year,) + theme(legend.position = "none")
+sends_by_year
+```
+
+Average grade sent per year:
+```{r, echo = FALSE}
+avg_grade <- finalticks %>% group_by(year) %>% summarize(average = mean(grade))
+avg_grade
+```
+
+
+In conclusion, my max grade has gone up consistently and slowly, but the average grade I go out and send on an average day out has only changed a little bit. While calculating averages or hypothesis testing doesn't make complete sense due to the nature of the data (penalized for sending more low grades in averages, penalized for spending more time on harder or new grades in total volume), it still does mean something. A pro boulderer's average grade is going to be higher than someone's who only can climb v10 since they can send many boulders harder than v10 with relative ease and likely don't seek out things so far below anything that physically challenges them. It is clear that moving to Indianapolis and not having outdoor access (partly due to time and money constraints) has hindered many "metrics" if you can even call them that. While I feel like I have gotten stronger and am a better climber than I was in 2021, the numbers do not necessarily show it. To be fair, since being here I have spent a lot of time in the gym and little outside, so it will be interesting to see how this changes over the next years as the gym time pays off and then hopefully moving to a place with better outdoor bouldering access after graduating in 2024.. 
